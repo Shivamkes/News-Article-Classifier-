@@ -1,1 +1,1 @@
-# News-Article-Classifer-Deployment
+# News-Article-Category-Classification
