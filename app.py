@@ -1,36 +1,79 @@
 from flask import Flask,request,render_template
 import pickle
-from gensim import utils
-import gensim.parsing.preprocessing as gsp
 import spacy
 import numpy as np
-import sklearn
+import nltk
+from nltk import word_tokenize, sent_tokenize
+from nltk.corpus import stopwords
+import re, string, unicodedata
+
 
 
 app=Flask(__name__)
-svc=pickle.load(open('bbc_model.pkl','rb'))
-dictionary=pickle.load(open('dict.pkl','rb'))
+svc=pickle.load(open('final_model.pkl','rb'))
 
-nlp = spacy.load('en_core_web_sm', disable=['parser', 'ner'])
+dictionary=pickle.load(open('final_dict.pkl','rb'))
 
-filters = [
-           gsp.strip_tags,
-           gsp.strip_punctuation,
-           gsp.strip_multiple_whitespaces,
-           gsp.strip_numeric,
-           gsp.remove_stopwords,
-           gsp.strip_short
-          ]
+#Text preprocessing Step
+
+def remove_non_ascii(words):
+    
+    new_words = []
+    for word in words:
+        new_word = unicodedata.normalize('NFKD', word).encode('ascii', 'ignore').decode('utf-8', 'ignore')
+        new_words.append(new_word)
+    return new_words
 
 
-def clean_text(s):
-    s = s.lower()
-    s = utils.to_unicode(s)
-    for f in filters:
-        s = f(s)
-        doc = nlp(s)
-        s = " ".join([token.lemma_ for token in doc])
+def to_lowercase(words):
+    
+    new_words = []
+    for word in words:
+        new_word = word.lower()
+        new_words.append(new_word)
+    return new_words
+
+def remove_non_alpha(words):
+    
+    new_words = []
+    for word in words:
+        new_word = re.sub(r'[^a-zA-Z]', "", word)
+        if new_word != '':
+            new_words.append(new_word)
+    return new_words
+
+def remove_stopwords(words):
+   
+    new_words = []
+    for word in words:
+        if word not in stopwords.words('english'):
+            new_words.append(word)
+    return new_words
+
+nlp = spacy.load('en', disable=['parser', 'ner'])
+def lemmatize(clean_text):
+   
+    doc = nlp(clean_text)
+    s=" ".join([token.lemma_ for token in doc])
     return s
+
+ def clean_text(text):
+  words = nltk.word_tokenize(text)
+
+  words = remove_non_ascii(words)
+
+  words = to_lowercase(words)
+
+  words = remove_non_alpha(words)
+
+  words = remove_stopwords(words)
+
+  clean_text=" ".join([token for token in words])
+
+  lemmatize_text=lemmatize(clean_text)
+
+  return lemmatize_text
+
 
 w2v_words= dict()
 f = open('glove.6B.100d.txt',encoding="utf8")
@@ -42,7 +85,9 @@ for line in f:
 f.close()
 
 tfidf_feat=dictionary.keys()
-id_to_category = {0: 'Business', 1: 'Entertainment' , 2: 'Politics', 3: 'Sports',4: 'Technology'}
+
+id_to_category = {0:'Politics',1:'Technology', 2:'Entertainment',3: 'Business',4:'Sport'}
+
 
 @app.route('/')
 def home():
